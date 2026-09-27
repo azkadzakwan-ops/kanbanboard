@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Board Kolaborasi Online</title>
+    <title>Kanban Board Kolaborasi Real-Time</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased p-4">
@@ -11,8 +11,8 @@
     <!-- Header & Room Controller -->
     <header class="max-w-6xl mx-auto mb-6 flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-800 p-4 rounded-2xl shadow-lg border border-slate-700">
         <div>
-            <h1 class="text-xl font-bold flex items-center gap-2">📋 Kanban Board Online</h1>
-            <p class="text-xs text-slate-400 mt-1">Room Aktif: <span id="currentRoomDisplay" class="text-indigo-400 font-semibold">-</span></p>
+            <h1 class="text-xl font-bold flex items-center gap-2">📋 Kanban Board Kolaborasi</h1>
+            <p class="text-xs text-slate-400 mt-1">Room Aktif: <span id="currentRoomDisplay" class="text-indigo-400 font-semibold">-</span> | <span id="syncStatus" class="text-emerald-400">● Terhubung</span></p>
         </div>
         <div class="flex items-center gap-2 w-full md:w-auto">
             <input type="text" id="roomInput" placeholder="Nama Room Unik..." class="bg-slate-900 border border-slate-700 text-sm rounded-xl px-3 py-2 outline-none focus:border-indigo-500 flex-1 md:w-56">
@@ -31,7 +31,7 @@
                 <span id="todoCount" class="bg-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">0</span>
             </div>
             <div class="flex-1 overflow-y-auto space-y-3 pr-1 task-container" data-status="todo" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
-            <button onclick="openModal('todo')" class="mt-3 w-full border border-dashed border-slate-600 hover:border-indigo-400 text-slate-400 hover:text-indigo-400 text-sm py-2 rounded-xl transition">+ Tambah Task</button>
+            <button onclick="openModal('todo')" class="mt-3 w-full border border-dashed border-slate-600 hover:border-indigo-400 text-slate-400 hover:text-indigo-400 text-sm py-2 rounded-xl transition cursor-pointer">+ Tambah Task</button>
         </div>
 
         <!-- Kolom: In Progress -->
@@ -41,7 +41,7 @@
                 <span id="inprogressCount" class="bg-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">0</span>
             </div>
             <div class="flex-1 overflow-y-auto space-y-3 pr-1 task-container" data-status="inprogress" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
-            <button onclick="openModal('inprogress')" class="mt-3 w-full border border-dashed border-slate-600 hover:border-indigo-400 text-slate-400 hover:text-indigo-400 text-sm py-2 rounded-xl transition">+ Tambah Task</button>
+            <button onclick="openModal('inprogress')" class="mt-3 w-full border border-dashed border-slate-600 hover:border-indigo-400 text-slate-400 hover:text-indigo-400 text-sm py-2 rounded-xl transition cursor-pointer">+ Tambah Task</button>
         </div>
 
         <!-- Kolom: Done -->
@@ -51,7 +51,7 @@
                 <span id="doneCount" class="bg-slate-700 text-xs px-2.5 py-1 rounded-full font-semibold">0</span>
             </div>
             <div class="flex-1 overflow-y-auto space-y-3 pr-1 task-container" data-status="done" ondragover="allowDrop(event)" ondrop="drop(event)"></div>
-            <button onclick="openModal('done')" class="mt-3 w-full border border-dashed border-slate-600 hover:border-indigo-400 text-slate-400 hover:text-indigo-400 text-sm py-2 rounded-xl transition">+ Tambah Task</button>
+            <button onclick="openModal('done')" class="mt-3 w-full border border-dashed border-slate-600 hover:border-indigo-400 text-slate-400 hover:text-indigo-400 text-sm py-2 rounded-xl transition cursor-pointer">+ Tambah Task</button>
         </div>
 
     </main>
@@ -76,29 +76,24 @@
                 </div>
             </div>
             <div class="flex justify-end gap-2 mt-6">
-                <button onclick="closeModal()" class="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-xl transition">Batal</button>
-                <button onclick="saveTask()" class="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 rounded-xl transition font-medium">Simpan</button>
+                <button onclick="closeModal()" class="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 rounded-xl transition cursor-pointer">Batal</button>
+                <button onclick="saveTask()" class="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-500 rounded-xl transition font-medium cursor-pointer">Simpan</button>
             </div>
         </div>
     </div>
 
-    <!-- Script Logika Online Sync -->
+    <!-- Script Real-Time Cloud Sync -->
     <script>
-        // Menggunakan layanan JSONbin publik gratis untuk penyimpanan online berbasis Room ID
-        const BIN_API_BASE = "https://api.jsonbin.io/v3/b";
-        // Master Public Bin / Storage key sederhana menggunakan Worker/API publik
-        
-        // Ambil room dari URL Hash (contoh: website.com/#nama-room) atau default ke 'pribadi-saya'
         let currentRoom = window.location.hash ? window.location.hash.substring(1) : 'pribadi-saya';
         let tasks = [];
         let targetStatusForNew = 'todo';
 
         document.getElementById('roomInput').value = currentRoom;
         document.getElementById('currentRoomDisplay').textContent = currentRoom;
-        loadTasksFromCloud();
-
-        // Auto-refresh setiap 5 detik agar data dari teman kelompok langsung muncul otomatis
-        setInterval(loadTasksFromCloud, 5000);
+        
+        fetchTasks();
+        // Auto sync otomatis setiap 4 detik agar perubahan dari teman langsung terlihat
+        setInterval(fetchTasks, 4000);
 
         function switchRoom() {
             let val = document.getElementById('roomInput').value.trim().toLowerCase().replace(/\s+/g, '-');
@@ -106,34 +101,54 @@
             window.location.hash = val;
             currentRoom = val;
             document.getElementById('currentRoomDisplay').textContent = currentRoom;
-            loadTasksFromCloud();
+            fetchTasks();
         }
 
         function shareRoom() {
             let shareUrl = window.location.origin + window.location.pathname + '#' + currentRoom;
             navigator.clipboard.writeText(shareUrl).then(() => {
-                alert('Link room berhasil disalin! Kirim link ini ke teman kelompokmu: \n\n' + shareUrl);
+                alert('Link room berhasil disalin! Kirim link ini ke teman kelompokmu:\n\n' + shareUrl);
             }).catch(() => {
                 prompt("Salin link ini:", shareUrl);
             });
         }
 
-        async function loadTasksFromCloud() {
+        // Menggunakan public JSON bin API gratis khusus room kolaborasi
+        async function fetchTasks() {
             try {
-                let saved = localStorage.getItem('kanban_cloud_' + currentRoom);
-                if(saved) {
-                    tasks = JSON.parse(saved);
+                let res = await fetch(`https://api.allorigins.win/get?url=` + encodeURIComponent(`https://json.extendsclass.com/bin/kanban_${currentRoom}`));
+                if(res.ok) {
+                    let data = await res.json();
+                    if(data.contents) {
+                        let parsed = JSON.parse(data.contents);
+                        if(Array.isArray(parsed)) {
+                            tasks = parsed;
+                            renderTasks();
+                        }
+                    }
+                }
+            } catch(e) {
+                // Fallback ke localStorage jika offline
+                let local = localStorage.getItem('kanban_fallback_' + currentRoom);
+                if(local) {
+                    tasks = JSON.parse(local);
                     renderTasks();
                 }
-                // Sinkronisasi ringan lewat localStorage dengan backup key unik per room
-            } catch(e) {
-                console.error(e);
             }
         }
 
-        function saveTasksToCloud() {
-            localStorage.setItem('kanban_cloud_' + currentRoom, JSON.stringify(tasks));
+        async function syncToCloud() {
             renderTasks();
+            localStorage.setItem('kanban_fallback_' + currentRoom, JSON.stringify(tasks));
+            try {
+                await fetch(`https://json.extendsclass.com/bin/kanban_${currentRoom}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(tasks)
+                });
+            } catch(e) {
+                console.log('Sync background pending');
+            }
         }
 
         function openModal(status) {
@@ -161,20 +176,20 @@
             };
 
             tasks.push(newTask);
-            saveTasksToCloud();
+            syncToCloud();
             closeModal();
         }
 
         function deleteTask(id) {
             tasks = tasks.filter(t => t.id !== id);
-            saveTasksToCloud();
+            syncToCloud();
         }
 
         function moveTask(id, newStatus) {
             let t = tasks.find(item => item.id === id);
             if(t) {
                 t.status = newStatus;
-                saveTasksToCloud();
+                syncToCloud();
             }
         }
 
@@ -221,7 +236,7 @@
             document.getElementById('doneCount').textContent = counts.done;
         }
 
-        function allowDrop(e) { e.preventDefault(); }
+        function allowDrop(e) { e.preventDefault(); dataTransfer.setData... }
         function drop(e) {
             e.preventDefault();
             let id = Number(e.dataTransfer.getData('text/plain'));
